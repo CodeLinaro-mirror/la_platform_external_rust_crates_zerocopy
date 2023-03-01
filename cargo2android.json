@@ -1,0 +1,8 @@
+{
+  "device": true,
+  "force-rlib": true,
+  "no-host": true,
+  "patch": "patches/Android.bp.patch",
+  "run": true,
+  "tests": true
+}
