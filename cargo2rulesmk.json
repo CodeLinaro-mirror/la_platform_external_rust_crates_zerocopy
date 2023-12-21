@@ -1,0 +1,4 @@
+{
+  "features": "default,derive",
+  "patch": "patches/rules.mk.diff"
+}
