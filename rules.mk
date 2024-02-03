@@ -9,12 +9,14 @@ MODULE_SRCS := \
 
 MODULE_RUST_EDITION := 2018
 MODULE_RUSTFLAGS += \
+	--cfg 'feature="alloc"' \
 	--cfg 'feature="byteorder"' \
 	--cfg 'feature="default"' \
 	--cfg 'feature="derive"' \
 	--cfg 'feature="zerocopy-derive"' \
 
 MODULE_LIBRARY_DEPS := \
+	$(call FIND_CRATE,liballoc) \
 	external/rust/crates/byteorder \
 	external/rust/crates/zerocopy-derive \
 
