@@ -8,13 +8,16 @@ MODULE_SRCS := \
 	$(LOCAL_DIR)/src/lib.rs \
 
 MODULE_RUST_EDITION := 2018
-# TODO(b/316076550): Remove rules.mk patch when cargo2rulesmk.py is fixed
 MODULE_RUSTFLAGS += \
+	--cfg 'feature="alloc"' \
+	--cfg 'feature="byteorder"' \
 	--cfg 'feature="default"' \
 	--cfg 'feature="derive"' \
 	--cfg 'feature="zerocopy-derive"' \
 
 MODULE_LIBRARY_DEPS := \
+	$(call FIND_CRATE,liballoc) \
+	external/rust/crates/byteorder \
 	external/rust/crates/zerocopy-derive \
 
 include make/library.mk
