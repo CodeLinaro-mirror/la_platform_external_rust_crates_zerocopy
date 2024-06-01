@@ -16,7 +16,6 @@ MODULE_RUSTFLAGS += \
 	--cfg 'feature="zerocopy-derive"' \
 
 MODULE_LIBRARY_DEPS := \
-	$(call FIND_CRATE,liballoc) \
 	external/rust/crates/byteorder \
 	external/rust/crates/zerocopy-derive \
 
