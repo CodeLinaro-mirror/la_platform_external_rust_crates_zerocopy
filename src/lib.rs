@@ -142,17 +142,24 @@
 //! See our [MSRV policy].
 //!
 //! [MSRV policy]: https://github.com/google/zerocopy/blob/main/POLICIES.md#msrv
+//!
+//! # Changelog
+//!
+//! Zerocopy uses [GitHub Releases].
+//!
+//! [GitHub Releases]: https://github.com/google/zerocopy/releases
 
 // Sometimes we want to use lints which were added after our MSRV.
 // `unknown_lints` is `warn` by default and we deny warnings in CI, so without
 // this attribute, any unknown lint would cause a CI failure when testing with
 // our MSRV.
-#![allow(unknown_lints)]
+//
+// TODO(#1201): Remove `unexpected_cfgs`
+#![allow(unknown_lints, non_local_definitions, unexpected_cfgs)]
 #![deny(renamed_and_removed_lints)]
 #![deny(
     anonymous_parameters,
     deprecated_in_future,
-    illegal_floating_point_literal_pattern,
     late_bound_lifetime_arguments,
     missing_copy_implementations,
     missing_debug_implementations,
@@ -222,7 +229,18 @@
     clippy::indexing_slicing,
 ))]
 #![cfg_attr(not(test), no_std)]
-#![cfg_attr(feature = "simd-nightly", feature(stdsimd))]
+#![cfg_attr(
+    all(feature = "simd-nightly", any(target_arch = "x86", target_arch = "x86_64")),
+    feature(stdarch_x86_avx512)
+)]
+#![cfg_attr(
+    all(feature = "simd-nightly", target_arch = "arm"),
+    feature(stdarch_arm_dsp, stdarch_arm_neon_intrinsics)
+)]
+#![cfg_attr(
+    all(feature = "simd-nightly", any(target_arch = "powerpc", target_arch = "powerpc64")),
+    feature(stdarch_powerpc)
+)]
 #![cfg_attr(doc_cfg, feature(doc_cfg))]
 #![cfg_attr(
     __INTERNAL_USE_ONLY_NIGHLTY_FEATURES_IN_TESTS,
@@ -243,6 +261,7 @@ mod macros;
 pub mod byteorder;
 #[doc(hidden)]
 pub mod macro_util;
+mod post_monomorphization_compile_fail_tests;
 mod util;
 // TODO(#252): If we make this pub, come up with a better name.
 mod wrappers;
@@ -1346,8 +1365,8 @@ pub unsafe trait TryFromBytes {
 )]
 #[cfg_attr(
     not(feature = "derive"),
-    doc = concat!("[derive]: https://docs.rs/zerocopy/", "0.7.29", "/zerocopy/derive.FromZeroes.html"),
-    doc = concat!("[derive-analysis]: https://docs.rs/zerocopy/", "0.7.29", "/zerocopy/derive.FromZeroes.html#analysis"),
+    doc = concat!("[derive]: https://docs.rs/zerocopy/", "0.7.34", "/zerocopy/derive.FromZeroes.html"),
+    doc = concat!("[derive-analysis]: https://docs.rs/zerocopy/", "0.7.34", "/zerocopy/derive.FromZeroes.html#analysis"),
 )]
 pub unsafe trait FromZeroes {
     // The `Self: Sized` bound makes it so that `FromZeroes` is still object
@@ -1790,8 +1809,8 @@ pub use zerocopy_derive::FromBytes;
 )]
 #[cfg_attr(
     not(feature = "derive"),
-    doc = concat!("[derive]: https://docs.rs/zerocopy/", "0.7.29", "/zerocopy/derive.FromBytes.html"),
-    doc = concat!("[derive-analysis]: https://docs.rs/zerocopy/", "0.7.29", "/zerocopy/derive.FromBytes.html#analysis"),
+    doc = concat!("[derive]: https://docs.rs/zerocopy/", "0.7.34", "/zerocopy/derive.FromBytes.html"),
+    doc = concat!("[derive-analysis]: https://docs.rs/zerocopy/", "0.7.34", "/zerocopy/derive.FromBytes.html#analysis"),
 )]
 pub unsafe trait FromBytes: FromZeroes {
     // The `Self: Sized` bound makes it so that `FromBytes` is still object
@@ -2642,8 +2661,8 @@ pub use zerocopy_derive::AsBytes;
 )]
 #[cfg_attr(
     not(feature = "derive"),
-    doc = concat!("[derive]: https://docs.rs/zerocopy/", "0.7.29", "/zerocopy/derive.AsBytes.html"),
-    doc = concat!("[derive-analysis]: https://docs.rs/zerocopy/", "0.7.29", "/zerocopy/derive.AsBytes.html#analysis"),
+    doc = concat!("[derive]: https://docs.rs/zerocopy/", "0.7.34", "/zerocopy/derive.AsBytes.html"),
+    doc = concat!("[derive-analysis]: https://docs.rs/zerocopy/", "0.7.34", "/zerocopy/derive.AsBytes.html#analysis"),
 )]
 pub unsafe trait AsBytes {
     // The `Self: Sized` bound makes it so that this function doesn't prevent
@@ -3783,7 +3802,7 @@ macro_rules! transmute {
             // problem for 2018 edition crates.
             unsafe {
                 // Clippy: It's okay to transmute a type to itself.
-                #[allow(clippy::useless_transmute)]
+                #[allow(clippy::useless_transmute, clippy::missing_transmute_annotations)]
                 $crate::macro_util::core_reexport::mem::transmute(e)
             }
         }
@@ -4638,12 +4657,12 @@ where
     /// `into_ref` consumes the `Ref`, and returns a reference to `T`.
     #[inline(always)]
     pub fn into_ref(self) -> &'a T {
-        // SAFETY: This is sound because `B` is guaranteed to live for the
-        // lifetime `'a`, meaning that a) the returned reference cannot outlive
-        // the `B` from which `self` was constructed and, b) no mutable methods
-        // on that `B` can be called during the lifetime of the returned
-        // reference. See the documentation on `deref_helper` for what
-        // invariants we are required to uphold.
+        assert!(B::INTO_REF_INTO_MUT_ARE_SOUND);
+
+        // SAFETY: According to the safety preconditions on
+        // `ByteSlice::INTO_REF_INTO_MUT_ARE_SOUND`, the preceding assert
+        // ensures that, given `B: 'a`, it is sound to drop `self` and still
+        // access the underlying memory using reads for `'a`.
         unsafe { self.deref_helper() }
     }
 }
@@ -4658,12 +4677,13 @@ where
     /// `into_mut` consumes the `Ref`, and returns a mutable reference to `T`.
     #[inline(always)]
     pub fn into_mut(mut self) -> &'a mut T {
-        // SAFETY: This is sound because `B` is guaranteed to live for the
-        // lifetime `'a`, meaning that a) the returned reference cannot outlive
-        // the `B` from which `self` was constructed and, b) no other methods -
-        // mutable or immutable - on that `B` can be called during the lifetime
-        // of the returned reference. See the documentation on
-        // `deref_mut_helper` for what invariants we are required to uphold.
+        assert!(B::INTO_REF_INTO_MUT_ARE_SOUND);
+
+        // SAFETY: According to the safety preconditions on
+        // `ByteSlice::INTO_REF_INTO_MUT_ARE_SOUND`, the preceding assert
+        // ensures that, given `B: 'a + ByteSliceMut`, it is sound to drop
+        // `self` and still access the underlying memory using both reads and
+        // writes for `'a`.
         unsafe { self.deref_mut_helper() }
     }
 }
@@ -4678,12 +4698,12 @@ where
     /// `into_slice` consumes the `Ref`, and returns a reference to `[T]`.
     #[inline(always)]
     pub fn into_slice(self) -> &'a [T] {
-        // SAFETY: This is sound because `B` is guaranteed to live for the
-        // lifetime `'a`, meaning that a) the returned reference cannot outlive
-        // the `B` from which `self` was constructed and, b) no mutable methods
-        // on that `B` can be called during the lifetime of the returned
-        // reference. See the documentation on `deref_slice_helper` for what
-        // invariants we are required to uphold.
+        assert!(B::INTO_REF_INTO_MUT_ARE_SOUND);
+
+        // SAFETY: According to the safety preconditions on
+        // `ByteSlice::INTO_REF_INTO_MUT_ARE_SOUND`, the preceding assert
+        // ensures that, given `B: 'a`, it is sound to drop `self` and still
+        // access the underlying memory using reads for `'a`.
         unsafe { self.deref_slice_helper() }
     }
 }
@@ -4699,13 +4719,13 @@ where
     /// `[T]`.
     #[inline(always)]
     pub fn into_mut_slice(mut self) -> &'a mut [T] {
-        // SAFETY: This is sound because `B` is guaranteed to live for the
-        // lifetime `'a`, meaning that a) the returned reference cannot outlive
-        // the `B` from which `self` was constructed and, b) no other methods -
-        // mutable or immutable - on that `B` can be called during the lifetime
-        // of the returned reference. See the documentation on
-        // `deref_mut_slice_helper` for what invariants we are required to
-        // uphold.
+        assert!(B::INTO_REF_INTO_MUT_ARE_SOUND);
+
+        // SAFETY: According to the safety preconditions on
+        // `ByteSlice::INTO_REF_INTO_MUT_ARE_SOUND`, the preceding assert
+        // ensures that, given `B: 'a + ByteSliceMut`, it is sound to drop
+        // `self` and still access the underlying memory using both reads and
+        // writes for `'a`.
         unsafe { self.deref_mut_slice_helper() }
     }
 }
@@ -5118,9 +5138,30 @@ mod sealed {
     not(feature = "alloc"),
     doc = "[`Vec<u8>`]: https://doc.rust-lang.org/std/vec/struct.Vec.html"
 )]
-pub unsafe trait ByteSlice:
-    Deref<Target = [u8]> + Sized + self::sealed::ByteSliceSealed
-{
+pub unsafe trait ByteSlice: Deref<Target = [u8]> + Sized + sealed::ByteSliceSealed {
+    /// Are the [`Ref::into_ref`] and [`Ref::into_mut`] methods sound when used
+    /// with `Self`? If not, evaluating this constant must panic at compile
+    /// time.
+    ///
+    /// This exists to work around #716 on versions of zerocopy prior to 0.8.
+    ///
+    /// # Safety
+    ///
+    /// This may only be set to true if the following holds: Given the
+    /// following:
+    /// - `Self: 'a`
+    /// - `bytes: Self`
+    /// - `let ptr = bytes.as_ptr()`
+    ///
+    /// ...then:
+    /// - Using `ptr` to read the memory previously addressed by `bytes` is
+    ///   sound for `'a` even after `bytes` has been dropped.
+    /// - If `Self: ByteSliceMut`, using `ptr` to write the memory previously
+    ///   addressed by `bytes` is sound for `'a` even after `bytes` has been
+    ///   dropped.
+    #[doc(hidden)]
+    const INTO_REF_INTO_MUT_ARE_SOUND: bool;
+
     /// Gets a raw pointer to the first byte in the slice.
     #[inline]
     fn as_ptr(&self) -> *const u8 {
@@ -5155,6 +5196,10 @@ impl<'a> sealed::ByteSliceSealed for &'a [u8] {}
 // TODO(#429): Add a "SAFETY" comment and remove this `allow`.
 #[allow(clippy::undocumented_unsafe_blocks)]
 unsafe impl<'a> ByteSlice for &'a [u8] {
+    // SAFETY: If `&'b [u8]: 'a`, then the underlying memory is treated as
+    // borrowed immutably for `'a` even if the slice itself is dropped.
+    const INTO_REF_INTO_MUT_ARE_SOUND: bool = true;
+
     #[inline]
     fn split_at(self, mid: usize) -> (Self, Self) {
         <[u8]>::split_at(self, mid)
@@ -5165,6 +5210,10 @@ impl<'a> sealed::ByteSliceSealed for &'a mut [u8] {}
 // TODO(#429): Add a "SAFETY" comment and remove this `allow`.
 #[allow(clippy::undocumented_unsafe_blocks)]
 unsafe impl<'a> ByteSlice for &'a mut [u8] {
+    // SAFETY: If `&'b mut [u8]: 'a`, then the underlying memory is treated as
+    // borrowed mutably for `'a` even if the slice itself is dropped.
+    const INTO_REF_INTO_MUT_ARE_SOUND: bool = true;
+
     #[inline]
     fn split_at(self, mid: usize) -> (Self, Self) {
         <[u8]>::split_at_mut(self, mid)
@@ -5175,6 +5224,16 @@ impl<'a> sealed::ByteSliceSealed for cell::Ref<'a, [u8]> {}
 // TODO(#429): Add a "SAFETY" comment and remove this `allow`.
 #[allow(clippy::undocumented_unsafe_blocks)]
 unsafe impl<'a> ByteSlice for cell::Ref<'a, [u8]> {
+    const INTO_REF_INTO_MUT_ARE_SOUND: bool = if !cfg!(doc) {
+        panic!("Ref::into_ref and Ref::into_mut are unsound when used with core::cell::Ref; see https://github.com/google/zerocopy/issues/716")
+    } else {
+        // When compiling documentation, allow the evaluation of this constant
+        // to succeed. This doesn't represent a soundness hole - it just delays
+        // any error to runtime. The reason we need this is that, otherwise,
+        // `rustdoc` will fail when trying to document this item.
+        false
+    };
+
     #[inline]
     fn split_at(self, mid: usize) -> (Self, Self) {
         cell::Ref::map_split(self, |slice| <[u8]>::split_at(slice, mid))
@@ -5185,6 +5244,16 @@ impl<'a> sealed::ByteSliceSealed for RefMut<'a, [u8]> {}
 // TODO(#429): Add a "SAFETY" comment and remove this `allow`.
 #[allow(clippy::undocumented_unsafe_blocks)]
 unsafe impl<'a> ByteSlice for RefMut<'a, [u8]> {
+    const INTO_REF_INTO_MUT_ARE_SOUND: bool = if !cfg!(doc) {
+        panic!("Ref::into_ref and Ref::into_mut are unsound when used with core::cell::RefMut; see https://github.com/google/zerocopy/issues/716")
+    } else {
+        // When compiling documentation, allow the evaluation of this constant
+        // to succeed. This doesn't represent a soundness hole - it just delays
+        // any error to runtime. The reason we need this is that, otherwise,
+        // `rustdoc` will fail when trying to document this item.
+        false
+    };
+
     #[inline]
     fn split_at(self, mid: usize) -> (Self, Self) {
         RefMut::map_split(self, |slice| <[u8]>::split_at_mut(slice, mid))
@@ -6354,6 +6423,7 @@ mod tests {
         // | `repr(C)`? | generic? | `KnownLayout`? | `Sized`? | Type Name |
         // |          N |        N |              N |        Y |      KL01 |
         #[derive(KnownLayout)]
+        #[allow(dead_code)] // fields are never read
         struct KL01(NotKnownLayout<AU32>, NotKnownLayout<AU16>);
 
         let expected = DstLayout::for_type::<KL01>();
@@ -6364,6 +6434,7 @@ mod tests {
         // ...with `align(N)`:
         #[derive(KnownLayout)]
         #[repr(align(64))]
+        #[allow(dead_code)] // fields are never read
         struct KL01Align(NotKnownLayout<AU32>, NotKnownLayout<AU16>);
 
         let expected = DstLayout::for_type::<KL01Align>();
@@ -6374,6 +6445,7 @@ mod tests {
         // ...with `packed`:
         #[derive(KnownLayout)]
         #[repr(packed)]
+        #[allow(dead_code)] // fields are never read
         struct KL01Packed(NotKnownLayout<AU32>, NotKnownLayout<AU16>);
 
         let expected = DstLayout::for_type::<KL01Packed>();
@@ -6384,6 +6456,7 @@ mod tests {
         // ...with `packed(N)`:
         #[derive(KnownLayout)]
         #[repr(packed(2))]
+        #[allow(dead_code)] // fields are never read
         struct KL01PackedN(NotKnownLayout<AU32>, NotKnownLayout<AU16>);
 
         assert_impl_all!(KL01PackedN: KnownLayout);
@@ -6396,6 +6469,7 @@ mod tests {
         // | `repr(C)`? | generic? | `KnownLayout`? | `Sized`? | Type Name |
         // |          N |        N |              Y |        Y |      KL03 |
         #[derive(KnownLayout)]
+        #[allow(dead_code)] // fields are never read
         struct KL03(NotKnownLayout, u8);
 
         let expected = DstLayout::for_type::<KL03>();
@@ -6406,6 +6480,7 @@ mod tests {
         // ... with `align(N)`
         #[derive(KnownLayout)]
         #[repr(align(64))]
+        #[allow(dead_code)] // fields are never read
         struct KL03Align(NotKnownLayout<AU32>, u8);
 
         let expected = DstLayout::for_type::<KL03Align>();
@@ -6416,6 +6491,7 @@ mod tests {
         // ... with `packed`:
         #[derive(KnownLayout)]
         #[repr(packed)]
+        #[allow(dead_code)] // fields are never read
         struct KL03Packed(NotKnownLayout<AU32>, u8);
 
         let expected = DstLayout::for_type::<KL03Packed>();
@@ -6426,6 +6502,7 @@ mod tests {
         // ... with `packed(N)`
         #[derive(KnownLayout)]
         #[repr(packed(2))]
+        #[allow(dead_code)] // fields are never read
         struct KL03PackedN(NotKnownLayout<AU32>, u8);
 
         assert_impl_all!(KL03PackedN: KnownLayout);
@@ -6438,6 +6515,7 @@ mod tests {
         // | `repr(C)`? | generic? | `KnownLayout`? | `Sized`? | Type Name |
         // |          N |        Y |              N |        Y |      KL05 |
         #[derive(KnownLayout)]
+        #[allow(dead_code)] // fields are never read
         struct KL05<T>(u8, T);
 
         fn _test_kl05<T>(t: T) -> impl KnownLayout {
@@ -6447,6 +6525,7 @@ mod tests {
         // | `repr(C)`? | generic? | `KnownLayout`? | `Sized`? | Type Name |
         // |          N |        Y |              Y |        Y |      KL07 |
         #[derive(KnownLayout)]
+        #[allow(dead_code)] // fields are never read
         struct KL07<T: KnownLayout>(u8, T);
 
         fn _test_kl07<T: KnownLayout>(t: T) -> impl KnownLayout {
@@ -7597,6 +7676,7 @@ mod tests {
     fn test_transparent_packed_generic_struct() {
         #[derive(AsBytes, FromZeroes, FromBytes, Unaligned)]
         #[repr(transparent)]
+        #[allow(dead_code)] // for the unused fields
         struct Foo<T> {
             _t: T,
             _phantom: PhantomData<()>,
@@ -7607,6 +7687,7 @@ mod tests {
 
         #[derive(AsBytes, FromZeroes, FromBytes, Unaligned)]
         #[repr(packed)]
+        #[allow(dead_code)] // for the unused fields
         struct Bar<T, U> {
             _t: T,
             _u: U,
