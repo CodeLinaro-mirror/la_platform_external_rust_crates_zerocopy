@@ -1,5 +1,5 @@
 # This project was upgraded with external_updater.
-# Usage: tools/external_updater/updater.sh update rust/crates/zerocopy
+# Usage: tools/external_updater/updater.sh update external/rust/crates/zerocopy
 # For more info, check https://cs.android.com/android/platform/superproject/+/main:tools/external_updater/README.md
 
 name: "zerocopy"
@@ -7,9 +7,9 @@ description: "Utilities for zero-copy parsing and serialization"
 third_party {
   license_type: NOTICE
   last_upgrade_date {
-    year: 2023
-    month: 12
-    day: 5
+    year: 2024
+    month: 6
+    day: 4
   }
   identifier {
     type: "crates.io"
@@ -18,7 +18,7 @@ third_party {
   }
   identifier {
     type: "Archive"
-    value: "https://static.crates.io/crates/zerocopy/zerocopy-0.7.29.crate"
-    version: "0.7.29"
+    value: "https://static.crates.io/crates/zerocopy/zerocopy-0.7.34.crate"
+    version: "0.7.34"
   }
 }
