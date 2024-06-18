@@ -25,7 +25,7 @@ rust_library {
     host_supported: true,
     crate_name: "zerocopy",
     cargo_env_compat: true,
-    cargo_pkg_version: "0.7.29",
+    cargo_pkg_version: "0.7.34",
     crate_root: "src/lib.rs",
     edition: "2018",
     features: [
@@ -48,7 +48,7 @@ rust_library_rlib {
     name: "libzerocopy_nostd",
     crate_name: "zerocopy",
     cargo_env_compat: true,
-    cargo_pkg_version: "0.7.29",
+    cargo_pkg_version: "0.7.34",
     crate_root: "src/lib.rs",
     edition: "2018",
     features: [
@@ -79,7 +79,7 @@ rust_library_rlib {
     name: "libzerocopy_nostd_noalloc",
     crate_name: "zerocopy",
     cargo_env_compat: true,
-    cargo_pkg_version: "0.7.29",
+    cargo_pkg_version: "0.7.34",
     crate_root: "src/lib.rs",
     edition: "2018",
     features: [
