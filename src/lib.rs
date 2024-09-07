@@ -171,16 +171,7 @@
     unreachable_pub,
     unsafe_op_in_unsafe_fn,
     unused_extern_crates,
-    // We intentionally choose not to deny `unused_qualifications`. When items
-    // are added to the prelude (e.g., `core::mem::size_of`), this has the
-    // consequence of making some uses trigger this lint on the latest toolchain
-    // (e.g., `mem::size_of`), but fixing it (e.g. by replacing with `size_of`)
-    // does not work on older toolchains.
-    //
-    // We tested a more complicated fix in #1413, but ultimately decided that,
-    // since this lint is just a minor style lint, the complexity isn't worth it
-    // - it's fine to occasionally have unused qualifications slip through,
-    // especially since these do not affect our user-facing API in any way.
+    unused_qualifications,
     variant_size_differences
 )]
 #![cfg_attr(
@@ -1093,7 +1084,7 @@ safety_comment! {
 /// Per the [Rust reference](reference),
 ///
 /// > The representation of a type can change the padding between fields, but
-/// > does not change the layout of the fields themselves.
+/// does not change the layout of the fields themselves.
 ///
 /// [reference]: https://doc.rust-lang.org/reference/type-layout.html#representations
 ///
@@ -1374,8 +1365,8 @@ pub unsafe trait TryFromBytes {
 )]
 #[cfg_attr(
     not(feature = "derive"),
-    doc = concat!("[derive]: https://docs.rs/zerocopy/", "0.7.35", "/zerocopy/derive.FromZeroes.html"),
-    doc = concat!("[derive-analysis]: https://docs.rs/zerocopy/", "0.7.35", "/zerocopy/derive.FromZeroes.html#analysis"),
+    doc = concat!("[derive]: https://docs.rs/zerocopy/", "0.7.34", "/zerocopy/derive.FromZeroes.html"),
+    doc = concat!("[derive-analysis]: https://docs.rs/zerocopy/", "0.7.34", "/zerocopy/derive.FromZeroes.html#analysis"),
 )]
 pub unsafe trait FromZeroes {
     // The `Self: Sized` bound makes it so that `FromZeroes` is still object
@@ -1708,7 +1699,7 @@ pub unsafe trait FromZeroes {
 /// Per the [Rust reference](reference),
 ///
 /// > The representation of a type can change the padding between fields, but
-/// > does not change the layout of the fields themselves.
+/// does not change the layout of the fields themselves.
 ///
 /// [reference]: https://doc.rust-lang.org/reference/type-layout.html#representations
 ///
@@ -1818,8 +1809,8 @@ pub use zerocopy_derive::FromBytes;
 )]
 #[cfg_attr(
     not(feature = "derive"),
-    doc = concat!("[derive]: https://docs.rs/zerocopy/", "0.7.35", "/zerocopy/derive.FromBytes.html"),
-    doc = concat!("[derive-analysis]: https://docs.rs/zerocopy/", "0.7.35", "/zerocopy/derive.FromBytes.html#analysis"),
+    doc = concat!("[derive]: https://docs.rs/zerocopy/", "0.7.34", "/zerocopy/derive.FromBytes.html"),
+    doc = concat!("[derive-analysis]: https://docs.rs/zerocopy/", "0.7.34", "/zerocopy/derive.FromBytes.html#analysis"),
 )]
 pub unsafe trait FromBytes: FromZeroes {
     // The `Self: Sized` bound makes it so that `FromBytes` is still object
@@ -2670,8 +2661,8 @@ pub use zerocopy_derive::AsBytes;
 )]
 #[cfg_attr(
     not(feature = "derive"),
-    doc = concat!("[derive]: https://docs.rs/zerocopy/", "0.7.35", "/zerocopy/derive.AsBytes.html"),
-    doc = concat!("[derive-analysis]: https://docs.rs/zerocopy/", "0.7.35", "/zerocopy/derive.AsBytes.html#analysis"),
+    doc = concat!("[derive]: https://docs.rs/zerocopy/", "0.7.34", "/zerocopy/derive.AsBytes.html"),
+    doc = concat!("[derive-analysis]: https://docs.rs/zerocopy/", "0.7.34", "/zerocopy/derive.AsBytes.html#analysis"),
 )]
 pub unsafe trait AsBytes {
     // The `Self: Sized` bound makes it so that this function doesn't prevent
@@ -7773,6 +7764,9 @@ mod tests {
 
                 fn with_failing_test_cases<F: Fn(&[u8])>(_f: F) {
                     $($(
+                        // `unused_qualifications` is spuriously triggered on
+                        // `Option::<Self>::None`.
+                        #[allow(unused_qualifications)]
                         let case = $failure_case.as_bytes();
                         _f(case.as_bytes());
                     )*)?
