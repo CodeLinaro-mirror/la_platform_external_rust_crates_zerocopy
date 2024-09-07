@@ -6,7 +6,7 @@ index 6290e64..959d61c 100644
         --cfg 'feature="zerocopy-derive"' \
  
  MODULE_LIBRARY_DEPS := \
-+	$(call FIND_CRATE,liballoc) \
++	trusty/user/base/lib/liballoc-rust \
  	external/rust/crates/byteorder \
  	external/rust/crates/zerocopy-derive \
 
