@@ -1374,8 +1374,8 @@ pub unsafe trait TryFromBytes {
 )]
 #[cfg_attr(
     not(feature = "derive"),
-    doc = concat!("[derive]: https://docs.rs/zerocopy/", "0.7.35", "/zerocopy/derive.FromZeroes.html"),
-    doc = concat!("[derive-analysis]: https://docs.rs/zerocopy/", "0.7.35", "/zerocopy/derive.FromZeroes.html#analysis"),
+    doc = concat!("[derive]: https://docs.rs/zerocopy/", env!("CARGO_PKG_VERSION"), "/zerocopy/derive.FromZeroes.html"),
+    doc = concat!("[derive-analysis]: https://docs.rs/zerocopy/", env!("CARGO_PKG_VERSION"), "/zerocopy/derive.FromZeroes.html#analysis"),
 )]
 pub unsafe trait FromZeroes {
     // The `Self: Sized` bound makes it so that `FromZeroes` is still object
@@ -1818,8 +1818,8 @@ pub use zerocopy_derive::FromBytes;
 )]
 #[cfg_attr(
     not(feature = "derive"),
-    doc = concat!("[derive]: https://docs.rs/zerocopy/", "0.7.35", "/zerocopy/derive.FromBytes.html"),
-    doc = concat!("[derive-analysis]: https://docs.rs/zerocopy/", "0.7.35", "/zerocopy/derive.FromBytes.html#analysis"),
+    doc = concat!("[derive]: https://docs.rs/zerocopy/", env!("CARGO_PKG_VERSION"), "/zerocopy/derive.FromBytes.html"),
+    doc = concat!("[derive-analysis]: https://docs.rs/zerocopy/", env!("CARGO_PKG_VERSION"), "/zerocopy/derive.FromBytes.html#analysis"),
 )]
 pub unsafe trait FromBytes: FromZeroes {
     // The `Self: Sized` bound makes it so that `FromBytes` is still object
@@ -2670,8 +2670,8 @@ pub use zerocopy_derive::AsBytes;
 )]
 #[cfg_attr(
     not(feature = "derive"),
-    doc = concat!("[derive]: https://docs.rs/zerocopy/", "0.7.35", "/zerocopy/derive.AsBytes.html"),
-    doc = concat!("[derive-analysis]: https://docs.rs/zerocopy/", "0.7.35", "/zerocopy/derive.AsBytes.html#analysis"),
+    doc = concat!("[derive]: https://docs.rs/zerocopy/", env!("CARGO_PKG_VERSION"), "/zerocopy/derive.AsBytes.html"),
+    doc = concat!("[derive-analysis]: https://docs.rs/zerocopy/", env!("CARGO_PKG_VERSION"), "/zerocopy/derive.AsBytes.html#analysis"),
 )]
 pub unsafe trait AsBytes {
     // The `Self: Sized` bound makes it so that this function doesn't prevent
