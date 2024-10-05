@@ -45,6 +45,21 @@
           "no_std": true
         }
       }
+    },
+    {
+      "features": [
+        "alloc",
+        "derive",
+        "byteorder"
+      ],
+      "package": {
+        "zerocopy": {
+          "alloc": true,
+          "no_std": true
+        }
+      },
+      "generate_androidbp": false,
+      "generate_rulesmk": true
     }
   ]
 }
